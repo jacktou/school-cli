@@ -1,0 +1,19 @@
+{
+  "name": "school-cli",
+  "version": "0.1.0",
+  "description": "School.fun AI agent CLI — Privy wallet login stub + skills runner (paper-first)",
+  "bin": {
+    "school": "./bin/school.js"
+  },
+  "type": "commonjs",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "school": "node bin/school.js",
+    "start": "node bin/school.js"
+  },
+  "keywords": ["school.fun", "cli", "ai-agent", "privy"],
+  "license": "UNLICENSED",
+  "private": true
+}
