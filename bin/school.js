@@ -3,26 +3,37 @@
 
 const config = require('../lib/config');
 const skills = require('../lib/skills');
+const gateway = require('../lib/gateway');
 
 function usage() {
   return `school — School.fun AI agent CLI (paper-first)
 
 Usage:
-  school login [--paper]     Privy stub: write local paper session
-  school logout              Clear local session
-  school status              Show mode / key / last_call
-  school skills list         List P0 skills from school-skills/skills.json
+  school login --paper              Local paper session (stub address)
+  school login --privy [--token T]  Exchange Privy access token → gateway JWT
+  school logout                     Clear local session
+  school status [--probe]           Show mode / auth / last_call (+ optional GET /time)
+  school gateway time               Probe GET {SCHOOL_API_BASE}/time
+  school skills list                List P0 skills from school-skills/skills.json
   school skills run <id> [--input JSON]
-                             Run a skill (trade_paper = local sim only)
+                                    Run a skill (trade_paper = local sim only)
 
 Env:
+  SCHOOL_API_BASE      Gateway base (default https://school.fun/dex/gateway/v1)
+  PRIVY_APP_ID         Privy app id (public; default from school.fun web)
+  SCHOOL_ORG_ID        x-org-id header
+  SCHOOL_TENANT_ID     x-tenant-id header
+  SCHOOL_JWT           Optional Bearer JWT overlay (not written unless login --privy)
+  PRIVY_TOKEN          Privy access token for login --privy
+  KUANT_API_BASE       Future token_security base (default https://api.kuant.ai)
   SCHOOL_SKILLS_PATH   Override path to skills.json
   SCHOOL_CLI_CONFIG    Override session config file path
   SCHOOL_CLI_HOME      Dir for config.json (default ~/.school-cli)
 
 Notes:
-  - Live Privy login blocked until PRIVY_APP_ID is provided (TODO).
-  - trade_paper never signs or hits chain.
+  - login --privy needs a real Privy access token (browser/device). We never invent tokens.
+  - POST {SCHOOL_API_BASE}/auth/privy body: { "privy_token": "<privy access token>" }
+  - trade_paper never signs or hits chain. No order endpoints from this CLI yet.
 `;
 }
 
@@ -38,6 +49,12 @@ function parseArgs(argv) {
     const a = args[i];
     if (a === '--paper') {
       flags.paper = true;
+    } else if (a === '--privy') {
+      flags.privy = true;
+    } else if (a === '--probe') {
+      flags.probe = true;
+    } else if (a === '--token' || a === '-t') {
+      flags.token = args[++i];
     } else if (a === '--input' || a === '-i') {
       flags.input = args[++i];
     } else if (a === '--help' || a === '-h') {
@@ -51,26 +68,16 @@ function parseArgs(argv) {
   return { positional, flags };
 }
 
-function cmdLogin(flags) {
-  // TODO(privy): when PRIVY_APP_ID (and client secret if needed) arrives,
-  // replace this stub with real Privy browser/device login and store
-  // session token + wallet address. Never invent Privy credentials.
-  const paper = flags.paper !== false; // default paper until Privy ready
-  if (!paper && !process.env.PRIVY_APP_ID) {
-    console.error(
-      'Live login requires PRIVY_APP_ID. Use `school login --paper` for local stub.\n' +
-        'TODO: wire Privy hosted wallet when App ID is provided (do not invent credentials).'
-    );
-    process.exitCode = 1;
-    return;
-  }
-
+function cmdLoginPaper() {
   const fakeAddress = 'So1SchoolPaper111111111111111111111111111';
+  const prev = config.load();
   const saved = config.save({
     mode: 'paper',
-    key: null,
+    auth: null,
+    jwt: null,
+    expires_at: null,
     address: fakeAddress,
-    last_call: config.load().last_call,
+    last_call: prev.last_call,
   });
 
   printJson({
@@ -79,9 +86,118 @@ function cmdLogin(flags) {
     provider: 'privy-stub',
     mode: saved.mode,
     address: saved.address,
+    auth: saved.auth,
     config: config.configPath(),
-    todo: 'Replace stub with real Privy when PRIVY_APP_ID arrives',
   });
+}
+
+async function cmdLoginPrivy(flags) {
+  const env = config.gatewayEnv();
+  const privyToken = flags.token || process.env.PRIVY_TOKEN || null;
+
+  if (!privyToken) {
+    printJson({
+      ok: false,
+      skill: 'wallet_login',
+      mode: 'live',
+      error: 'missing_privy_token',
+      message:
+        'Live login needs a Privy access token from the browser/device login flow. ' +
+        'We do not invent tokens. Pass --token <privy_jwt> or set PRIVY_TOKEN.',
+      how: {
+        endpoint: `${env.apiBase}/auth/privy`,
+        method: 'POST',
+        body: { privy_token: '<privy access token from Privy>' },
+        privy_app_id: env.privyAppId,
+        example_cli: 'PRIVY_TOKEN=... school login --privy',
+        example_cli_flag: 'school login --privy --token <privy_jwt>',
+      },
+    });
+    process.exitCode = 1;
+    return;
+  }
+
+  let res;
+  try {
+    res = await gateway.exchangePrivyToken(privyToken);
+  } catch (e) {
+    console.error('gateway auth/privy failed:', e.message);
+    process.exitCode = 1;
+    return;
+  }
+
+  if (!res.ok) {
+    printJson({
+      ok: false,
+      skill: 'wallet_login',
+      mode: 'live',
+      error: 'auth_privy_rejected',
+      status: res.status,
+      url: res.url,
+      data: res.data,
+    });
+    process.exitCode = 1;
+    return;
+  }
+
+  const data = res.data || {};
+  // Gateway may return token / access_token / jwt — accept common shapes; do not invent.
+  const jwt =
+    data.token || data.access_token || data.jwt || data.accessToken || null;
+  const expiresAt =
+    data.expires_at || data.expiresAt || data.exp || null;
+  const address =
+    data.address || data.wallet || data.wallet_address || null;
+
+  if (!jwt) {
+    printJson({
+      ok: false,
+      skill: 'wallet_login',
+      mode: 'live',
+      error: 'no_jwt_in_response',
+      status: res.status,
+      url: res.url,
+      data,
+      note: 'Gateway response had no token/access_token/jwt field. Session not saved.',
+    });
+    process.exitCode = 1;
+    return;
+  }
+
+  const prev = config.load();
+  const saved = config.save({
+    mode: 'live',
+    auth: 'jwt',
+    jwt,
+    expires_at: expiresAt,
+    address,
+    last_call: prev.last_call,
+  });
+
+  printJson({
+    ok: true,
+    skill: 'wallet_login',
+    provider: 'privy',
+    mode: saved.mode,
+    auth: saved.auth,
+    has_jwt: true,
+    expires_at: saved.expires_at,
+    address: saved.address,
+    config: config.configPath(),
+  });
+}
+
+function cmdLogin(flags) {
+  if (flags.privy) {
+    return cmdLoginPrivy(flags);
+  }
+  // Default and --paper: local stub
+  if (flags.paper || (!flags.privy && !flags.live)) {
+    cmdLoginPaper();
+    return;
+  }
+  // Bare `school login` without flags → paper (backward compatible)
+  cmdLoginPaper();
 }
 
 function cmdLogout() {
@@ -89,16 +205,80 @@ function cmdLogout() {
   printJson({ ok: true, cleared: true, mode: saved.mode, config: config.configPath() });
 }
 
-function cmdStatus() {
+async function cmdStatus(flags) {
   const cfg = config.load();
-  printJson({
+  const env = config.gatewayEnv();
+  const out = {
     mode: cfg.mode,
-    key: cfg.key,
+    auth: cfg.auth || null,
+    has_jwt: Boolean(cfg.jwt),
+    expires_at: cfg.expires_at || null,
     last_call: cfg.last_call,
     address: cfg.address ?? null,
     config: config.configPath(),
     skills_path: skills.skillsPath(),
-  });
+    gateway: {
+      api_base: env.apiBase,
+      privy_app_id: env.privyAppId,
+      org_id: env.orgId,
+      tenant_id: env.tenantId,
+      kuant_api_base: env.kuantBase,
+    },
+  };
+
+  if (flags.probe) {
+    try {
+      const probe = await gateway.probeTime();
+      out.probe = {
+        path: '/time',
+        ok: probe.ok,
+        status: probe.status,
+        url: probe.url,
+        data: probe.data,
+      };
+    } catch (e) {
+      out.probe = { path: '/time', ok: false, error: e.message };
+    }
+  }
+
+  printJson(out);
+}
+
+async function cmdGateway(sub) {
+  if (sub === 'time') {
+    try {
+      const probe = await gateway.probeTime();
+      printJson({
+        ok: probe.ok,
+        status: probe.status,
+        url: probe.url,
+        data: probe.data,
+      });
+      if (!probe.ok) process.exitCode = 1;
+    } catch (e) {
+      console.error(e.message);
+      process.exitCode = 1;
+    }
+    return;
+  }
+  if (sub === 'markets') {
+    try {
+      const probe = await gateway.probeMarkets();
+      printJson({
+        ok: probe.ok,
+        status: probe.status,
+        url: probe.url,
+        data: probe.data,
+      });
+      if (!probe.ok) process.exitCode = 1;
+    } catch (e) {
+      console.error(e.message);
+      process.exitCode = 1;
+    }
+    return;
+  }
+  console.error('Usage: school gateway time | school gateway markets');
+  process.exitCode = 1;
 }
 
 function cmdSkillsList() {
@@ -137,7 +317,7 @@ function cmdSkillsRun(id, flags) {
   }
 }
 
-function main() {
+async function main() {
   const { positional, flags } = parseArgs(process.argv);
   if (flags.help || positional.length === 0) {
     process.stdout.write(usage());
@@ -148,13 +328,16 @@ function main() {
 
   switch (cmd) {
     case 'login':
-      cmdLogin(flags);
+      await cmdLogin(flags);
       break;
     case 'logout':
       cmdLogout();
       break;
     case 'status':
-      cmdStatus();
+      await cmdStatus(flags);
+      break;
+    case 'gateway':
+      await cmdGateway(sub);
       break;
     case 'skills':
       if (sub === 'list') {
@@ -173,4 +356,7 @@ function main() {
   }
 }
 
-main();
+main().catch((e) => {
+  console.error(e.message || e);
+  process.exit(1);
+});

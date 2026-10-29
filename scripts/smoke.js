@@ -15,6 +15,9 @@ const tmpConfig = path.join(
 
 process.env.SCHOOL_CLI_CONFIG = tmpConfig;
 process.env.SCHOOL_SKILLS_PATH = fixturesSkills;
+// Keep smoke offline: do not rely on network for paper path
+delete process.env.PRIVY_TOKEN;
+delete process.env.SCHOOL_JWT;
 
 let failed = 0;
 
@@ -53,19 +56,31 @@ run('--help', ['--help'], (r) => r.status === 0 && /school —/.test(r.stdout));
 run('status (before login)', ['status'], (r) => {
   if (r.status !== 0) return false;
   const j = parseJson(r.stdout);
-  return j && j.mode === 'paper';
+  return j && j.mode === 'paper' && j.auth === null && j.has_jwt === false;
 });
 
 run('login --paper', ['login', '--paper'], (r) => {
   if (r.status !== 0) return false;
   const j = parseJson(r.stdout);
-  return j && j.ok === true && j.address;
+  return j && j.ok === true && j.address && j.mode === 'paper';
 });
 
 run('status (after login, expect address)', ['status'], (r) => {
   if (r.status !== 0) return false;
   const j = parseJson(r.stdout);
-  return j && j.address != null && String(j.address).length > 0;
+  return (
+    j &&
+    j.address != null &&
+    String(j.address).length > 0 &&
+    j.has_jwt === false &&
+    j.auth === null
+  );
+});
+
+run('login --privy without token (expect exit 1 + instructions)', ['login', '--privy'], (r) => {
+  if (r.status !== 1) return false;
+  const j = parseJson(r.stdout);
+  return j && j.ok === false && j.error === 'missing_privy_token' && j.how && j.how.endpoint;
 });
 
 run('skills list', ['skills', 'list'], (r) => {
@@ -128,7 +143,7 @@ run('logout', ['logout'], (r) => {
 run('status (after logout, address null)', ['status'], (r) => {
   if (r.status !== 0) return false;
   const j = parseJson(r.stdout);
-  return j && (j.address === null || j.address === undefined);
+  return j && (j.address === null || j.address === undefined) && j.has_jwt === false;
 });
 
 try {
