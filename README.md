@@ -25,6 +25,23 @@ node bin/school.js --help
 P0 skill：`alpha_radar` · `alpha_transcript` · `token_security` · `trade_quote` · `trade_paper` · `vault_list`  
 登录映射：`school login` → `wallet_login`（CLI/auth，不算业务 skill）
 
+### 必填 `--input` 字段
+
+| skill | 必填 | 示例 |
+|-------|------|------|
+| `token_security` | `ca` | `--input '{"ca":"So1111…"}'` |
+| `trade_quote` / `trade_paper` | `pair`, `side`, `size` | `--input '{"pair":"SOL/USDC","side":"buy","size":1}'` |
+
+别名（仅当规范字段缺失时映射）：`mint`→`ca`，`amount`→`size`，`token`→`pair`。不会为必填字段编造默认值。
+
+## 测试
+
+```bash
+npm test
+# 等同于：node scripts/smoke.js
+# 使用 fixtures/skills.json + 临时 SCHOOL_CLI_CONFIG，不污染 ~/.school-cli
+```
+
 ## paper vs live
 
 - **paper（默认）**：本地 session + mock/模拟结果；`trade_paper` **永不签名、不上链**。
@@ -32,7 +49,7 @@ P0 skill：`alpha_radar` · `alpha_transcript` · `token_security` · `trade_quo
 
 环境变量：
 
-- `SCHOOL_SKILLS_PATH` — skills.json 路径（默认 `../school-skills/skills.json`）
+- `SCHOOL_SKILLS_PATH` — skills.json 路径（默认 `../school-skills/skills.json`；冒烟用 `fixtures/skills.json`）
 - `SCHOOL_CLI_CONFIG` — session 文件（默认 `~/.school-cli/config.json`）
 - `PRIVY_APP_ID` — 有了再接真登录（TODO）
 

@@ -11,7 +11,8 @@
   },
   "scripts": {
     "school": "node bin/school.js",
-    "start": "node bin/school.js"
+    "start": "node bin/school.js",
+    "test": "node scripts/smoke.js"
   },
   "keywords": ["school.fun", "cli", "ai-agent", "privy"],
   "license": "UNLICENSED",

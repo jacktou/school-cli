@@ -1,0 +1,91 @@
+{
+  "name": "school-skills",
+  "version": "0.1.0",
+  "description": "Minimal P0 skills contract fixture for school-cli smoke tests",
+  "groups": ["research", "markets", "trade", "vault"],
+  "skills": [
+    {
+      "id": "alpha_radar",
+      "group": "research",
+      "title": "Alpha Radar",
+      "description": "List tokens that entered the $1M+ pool on School.fun Alpha Research",
+      "input": {
+        "type": "object",
+        "properties": {
+          "min_mcap": { "type": "number", "default": 1000000 },
+          "limit": { "type": "integer", "default": 20, "maximum": 50 }
+        }
+      }
+    },
+    {
+      "id": "alpha_transcript",
+      "group": "research",
+      "title": "Alpha Transcript",
+      "description": "School.fun Alpha scorecard / transcript for one token",
+      "input": {
+        "type": "object",
+        "oneOf": [
+          { "required": ["ca"] },
+          { "required": ["name"] }
+        ],
+        "properties": {
+          "ca": { "type": "string" },
+          "name": { "type": "string" }
+        }
+      }
+    },
+    {
+      "id": "token_security",
+      "group": "research",
+      "title": "Token Security",
+      "description": "School.fun security flags for a contract",
+      "input": {
+        "type": "object",
+        "required": ["ca"],
+        "properties": {
+          "ca": { "type": "string" }
+        }
+      }
+    },
+    {
+      "id": "trade_quote",
+      "group": "markets",
+      "title": "Trade Quote",
+      "description": "Read-only spot/perp quote from School.fun markets",
+      "input": {
+        "type": "object",
+        "required": ["pair", "side", "size"],
+        "properties": {
+          "pair": { "type": "string" },
+          "side": { "enum": ["buy", "sell", "long", "short"] },
+          "size": { "type": "number" }
+        }
+      }
+    },
+    {
+      "id": "trade_paper",
+      "group": "trade",
+      "title": "Paper Trade",
+      "description": "Local simulated fill only; never signs or hits chain. Live requires Privy separately.",
+      "input": {
+        "type": "object",
+        "required": ["pair", "side", "size"],
+        "properties": {
+          "pair": { "type": "string" },
+          "side": { "enum": ["buy", "sell", "long", "short"] },
+          "size": { "type": "number" }
+        }
+      }
+    },
+    {
+      "id": "vault_list",
+      "group": "vault",
+      "title": "Vault List",
+      "description": "Read-only public/isolated vault pools",
+      "input": {
+        "type": "object",
+        "properties": {}
+      }
+    }
+  ]
+}
