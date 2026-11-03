@@ -17,7 +17,7 @@ Usage:
   school login --paper              Local paper session (stub address)
   school login --token T            DEBUG ONLY: exchange Privy token → JWT (also PRIVY_TOKEN)
   school logout                     Clear local session
-  school status [--probe]           Show mode / auth / has_jwt / last_call (+ optional GET /time)
+  school status [--probe]           Show mode / auth / has_jwt / evm_address / sol_address (+ optional GET /time)
   school gateway time               Probe GET {SCHOOL_API_BASE}/time
   school gateway markets            Probe GET {SCHOOL_API_BASE}/query/markets
   school skills list                List P0 skills from school-skills/skills.json
@@ -42,6 +42,8 @@ Notes:
   - Product login: school login → open loginUrl → Privy in browser → CLI polls local callback.
   - Never paste Privy tokens into chat. --token / PRIVY_TOKEN are debug/dev only.
   - POST {SCHOOL_API_BASE}/auth/privy body: { "privy_token": "<privy access token>" }
+  - After login, GET {SCHOOL_API_BASE}/auth/session fetches linked_wallets (EVM / Solana).
+  - Status shows evm_address (0x…), sol_address (if linked), and legacy address (copy of evm_address).
   - trade_paper never signs or hits chain. No order endpoints from this CLI yet.
   - school.fun may not yet honor ?school_cli_callback=; local page still accepts redirect tokens.
 `;
@@ -92,14 +94,17 @@ function parseArgs(argv) {
 }
 
 function cmdLoginPaper() {
-  const fakeAddress = 'So1SchoolPaper111111111111111111111111111';
+  const fakeAddressEvm = '0xPaper1111111111111111111111111111111';
+  const fakeAddressSol = 'So1SchoolPaper111111111111111111111111111';
   const prev = config.load();
   const saved = config.save({
     mode: 'paper',
     auth: null,
     jwt: null,
     expires_at: null,
-    address: fakeAddress,
+    address: fakeAddressEvm,
+    evm_address: fakeAddressEvm,
+    sol_address: fakeAddressSol,
     last_call: prev.last_call,
   });
 
@@ -109,6 +114,8 @@ function cmdLoginPaper() {
     provider: 'privy-stub',
     mode: saved.mode,
     address: saved.address,
+    evm_address: saved.evm_address,
+    sol_address: saved.sol_address,
     auth: saved.auth,
     config: config.configPath(),
   });
@@ -309,6 +316,8 @@ async function cmdStatus(flags) {
     expires_at: cfg.expires_at || null,
     last_call: cfg.last_call,
     address: cfg.address ?? null,
+    evm_address: cfg.evm_address ?? null,
+    sol_address: cfg.sol_address ?? null,
     config: config.configPath(),
     skills_path: skills.skillsPath(),
     gateway: {
