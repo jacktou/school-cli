@@ -26,6 +26,7 @@ Usage:
 
 Env:
   SCHOOL_API_BASE           Gateway base (default https://school.fun/dex/gateway/v1)
+  SCHOOL_WEB_BASE           Frontend origin for login deep-link (default https://school.fun)
   PRIVY_APP_ID              Privy app id (public; default from school.fun web)
   SCHOOL_ORG_ID             x-org-id header
   SCHOOL_TENANT_ID          x-tenant-id header
