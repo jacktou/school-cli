@@ -17,7 +17,7 @@ Usage:
   school login --paper              Local paper session (stub address)
   school login --token T            DEBUG ONLY: exchange Privy token → JWT (also PRIVY_TOKEN)
   school logout                     Clear local session
-  school status [--probe]           Show mode / auth / has_jwt / last_call (+ optional GET /time)
+  school status [--probe]           Show mode / auth / has_jwt / evm_address / sol_address / last_call (+ optional GET /time)
   school gateway time               Probe GET {SCHOOL_API_BASE}/time
   school gateway markets            Probe GET {SCHOOL_API_BASE}/query/markets
   school skills list                List P0 skills from school-skills/skills.json
@@ -100,6 +100,8 @@ function cmdLoginPaper() {
     jwt: null,
     expires_at: null,
     address: fakeAddress,
+    evm_address: null,
+    sol_address: fakeAddress,
     last_call: prev.last_call,
   });
 
@@ -109,6 +111,8 @@ function cmdLoginPaper() {
     provider: 'privy-stub',
     mode: saved.mode,
     address: saved.address,
+    evm_address: saved.evm_address,
+    sol_address: saved.sol_address,
     auth: saved.auth,
     config: config.configPath(),
   });
@@ -309,6 +313,8 @@ async function cmdStatus(flags) {
     expires_at: cfg.expires_at || null,
     last_call: cfg.last_call,
     address: cfg.address ?? null,
+    evm_address: cfg.evm_address ?? null,
+    sol_address: cfg.sol_address ?? null,
     config: config.configPath(),
     skills_path: skills.skillsPath(),
     gateway: {

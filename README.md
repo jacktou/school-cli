@@ -24,7 +24,7 @@ node bin/school.js --help
 | `school login --paper` | 本地 paper session（stub 地址） |
 | `school login --token <T>` | **DEBUG/DEV ONLY**：用手持 Privy token 换 JWT（也可用 `PRIVY_TOKEN`） |
 | `school logout` | 清除本地 session |
-| `school status [--probe]` | `mode` / `auth` / `has_jwt` / `expires_at` / `last_call`（**不打印 jwt**）；`--probe` 打 `GET /time` |
+| `school status [--probe]` | `mode` / `auth` / `has_jwt` / `expires_at` / `evm_address` / `sol_address` / `last_call`（**不打印 jwt**）；`--probe` 打 `GET /time` |
 | `school gateway time` | 探测 `GET {SCHOOL_API_BASE}/time` |
 | `school gateway markets` | 探测 `GET {SCHOOL_API_BASE}/query/markets` |
 | `school skills list` | 读取 skills.json |
@@ -120,4 +120,12 @@ school status --probe
 
 ## 与 Design 对齐
 
-状态条：`mode` · `auth`（`jwt`|null，**不是** API Key）· `has_jwt` · `expires_at` · `last_call`。旧字段 `key` 已弃用并固定为 `null`。登录卡：「打开登录页 → 等待完成」，无「粘贴 token」。
+状态条：`mode` · `auth`（`jwt`|null，**不是** API Key）· `has_jwt` · `expires_at` · `evm_address` · `sol_address` · `last_call`。
+
+### 钱包地址字段
+
+- `evm_address`：EVM 链地址，从 JWT payload 的 `eth_address` / `eth_addresses[0]` 提取，或回退到 gateway 响应字段
+- `sol_address`：Solana 地址（若存在），从 JWT payload 或 gateway 响应提取
+- `address`：向后兼容字段，等同于 `evm_address`
+
+旧字段 `key` 已弃用并固定为 `null`。登录卡：「打开登录页 → 等待完成」，无「粘贴 token」。
