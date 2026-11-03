@@ -123,7 +123,14 @@ run('status (before login)', ['status'], (r) => {
 run('login --paper', ['login', '--paper'], (r) => {
   if (r.status !== 0) return false;
   const j = parseJson(r.stdout);
-  return j && j.ok === true && j.address && j.mode === 'paper';
+  return (
+    j &&
+    j.ok === true &&
+    j.address &&
+    j.address_evm &&
+    j.address_sol &&
+    j.mode === 'paper'
+  );
 });
 
 run('status (after paper login)', ['status'], (r) => {
@@ -133,6 +140,10 @@ run('status (after paper login)', ['status'], (r) => {
     j &&
     j.address != null &&
     String(j.address).length > 0 &&
+    j.address_evm != null &&
+    String(j.address_evm).length > 0 &&
+    j.address_sol != null &&
+    String(j.address_sol).length > 0 &&
     j.has_jwt === false &&
     j.auth === null
   );
@@ -261,6 +272,8 @@ run('status (after paper login)', ['status'], (r) => {
           pollJ.ok === true &&
           pollJ.phase === 'done' &&
           pollJ.has_jwt === true &&
+          pollJ.address_evm != null &&
+          (pollJ.address_sol === null || pollJ.address_sol != null) &&
           !JSON.stringify(pollJ).includes('fake-for-dry-run') &&
           !JSON.stringify(pollJ).includes('dry-run-jwt');
       }
@@ -346,7 +359,13 @@ run('logout', ['logout'], (r) => {
 run('status (after logout)', ['status'], (r) => {
   if (r.status !== 0) return false;
   const j = parseJson(r.stdout);
-  return j && (j.address === null || j.address === undefined) && j.has_jwt === false;
+  return (
+    j &&
+    (j.address === null || j.address === undefined) &&
+    (j.address_evm === null || j.address_evm === undefined) &&
+    (j.address_sol === null || j.address_sol === undefined) &&
+    j.has_jwt === false
+  );
 });
 
 for (const fn of cleanups) {
