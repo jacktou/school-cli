@@ -149,6 +149,58 @@ run('status (after paper login)', ['status'], (r) => {
   );
 });
 
+// Test SCHOOL_WEB_BASE env var URL building
+(function testWebBaseEnv() {
+  const label = 'login --init with SCHOOL_WEB_BASE=http://localhost:5173';
+  const r = spawnSync(process.execPath, [bin, 'login', '--init', '--no-open'], {
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      SCHOOL_LOGIN_TIMEOUT_MS: '15000',
+      SCHOOL_WEB_BASE: 'http://localhost:5173',
+    },
+    cwd: root,
+  });
+  const j = parseJson(r.stdout);
+  let ok =
+    r.status === 0 &&
+    j &&
+    j.ok === true &&
+    j.phase === 'init' &&
+    typeof j.loginUrl === 'string';
+
+  if (ok && j.loginUrl && j.pid) {
+    cleanups.push(() => {
+      try {
+        process.kill(j.pid, 'SIGTERM');
+      } catch {
+        /* ignore */
+      }
+    });
+    try {
+      const healthUrl = j.loginUrl.replace(/\/login$/, '/health');
+      const loginPage = spawnSync('curl', ['-sS', j.loginUrl], { encoding: 'utf8' });
+      ok =
+        loginPage.status === 0 &&
+        loginPage.stdout.includes('http://localhost:5173/?school_cli_callback=') &&
+        !loginPage.stdout.includes('https://school.fun/?school_cli_callback=');
+    } catch (e) {
+      ok = false;
+      console.log(`  helper error: ${e.message}`);
+    }
+  }
+
+  if (ok) {
+    console.log(`PASS  ${label}`);
+  } else {
+    failed += 1;
+    console.log(`FAIL  ${label}`);
+    console.log(`  exit=${r.status}`);
+    if (r.stdout) console.log(`  stdout: ${r.stdout.slice(0, 800)}`);
+    if (r.stderr) console.log(`  stderr: ${r.stderr.slice(0, 500)}`);
+  }
+})();
+
 // Live init shape (no real Privy): --init starts local server
 (function testLoginInit() {
   const label = 'login --init (loginUrl shape + local server)';

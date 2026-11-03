@@ -80,6 +80,7 @@ school login --poll --session <sessionId>
 | 变量 | 默认（来自 school.fun 网页公开捕获） | 说明 |
 |------|--------------------------------------|------|
 | `SCHOOL_API_BASE` | `https://school.fun/dex/gateway/v1` | Gateway 前缀 |
+| `SCHOOL_WEB_BASE` | `https://school.fun` | 登录深链接前端 origin（本地开发可用 `http://localhost:5173`） |
 | `PRIVY_APP_ID` | `cmub8c7cw00p30bjwjmplktib` | Privy App ID（公开） |
 | `SCHOOL_ORG_ID` | `org_cnbdq6b0jcUhF5KM` | `x-org-id` |
 | `SCHOOL_TENANT_ID` | `tnt_FaMPg11lEX98rTYW` | `x-tenant-id` |
