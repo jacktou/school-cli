@@ -24,7 +24,7 @@ node bin/school.js --help
 | `school login --paper` | 本地 paper session（stub 地址） |
 | `school login --token <T>` | **DEBUG/DEV ONLY**：用手持 Privy token 换 JWT（也可用 `PRIVY_TOKEN`） |
 | `school logout` | 清除本地 session |
-| `school status [--probe]` | `mode` / `auth` / `has_jwt` / `expires_at` / `address_evm` / `address_sol`（**不打印 jwt**）；`--probe` 打 `GET /time` |
+| `school status [--probe]` | `mode` / `auth` / `has_jwt` / `expires_at` / `evm_address` / `sol_address`（**不打印 jwt**）；`--probe` 打 `GET /time` |
 | `school gateway time` | 探测 `GET {SCHOOL_API_BASE}/time` |
 | `school gateway markets` | 探测 `GET {SCHOOL_API_BASE}/query/markets` |
 | `school skills list` | 读取 skills.json |
@@ -61,8 +61,8 @@ school login --init
 school login --poll --session <sessionId>
 ```
 
-- `school status` 可查是否已登录 / 是否过期（只看 `has_jwt` / `expires_at` / `address_evm` / `address_sol`，不打印密钥）。
-- 登录成功后，CLI 会调用 `GET /auth/session` 获取 `linked_wallets`，解析出 `address_evm`（0x…）和 `address_sol`（如已关联）；`address` 保留为 `address_evm` 副本（向后兼容）。
+- `school status` 可查是否已登录 / 是否过期（只看 `has_jwt` / `expires_at` / `evm_address` / `sol_address`，不打印密钥）。
+- 登录成功后，CLI 会调用 `GET /auth/session` 获取 `linked_wallets`，解析出 `evm_address`（0x…）和 `sol_address`（如已关联）；`address` 保留为 `evm_address` 副本（向后兼容）。
 - **交易确认（后续）**：`trade_quote` 先出预览卡，用户明确「确认」再签名（OKX Confirming）；本 CLI 暂不下单。
 
 ### 限制（已知）
@@ -121,4 +121,4 @@ school status --probe
 
 ## 与 Design 对齐
 
-状态条：`mode` · `auth`（`jwt`|null，**不是** API Key）· `has_jwt` · `expires_at` · `address_evm` · `address_sol` · `last_call`。旧字段 `key` 已弃用并固定为 `null`；`address` 保留为 `address_evm` 副本（向后兼容）。登录卡：「打开登录页 → 等待完成」，无「粘贴 token」。
+状态条：`mode` · `auth`（`jwt`|null，**不是** API Key）· `has_jwt` · `expires_at` · `evm_address` · `sol_address` · `last_call`。旧字段 `key` 已弃用并固定为 `null`；`address` 保留为 `evm_address` 副本（向后兼容）。登录卡：「打开登录页 → 等待完成」，无「粘贴 token」。
